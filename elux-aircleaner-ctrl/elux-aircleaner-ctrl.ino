@@ -111,7 +111,7 @@ int ledsMatch(int leds, int pattern) {
 #define MODEPATTERN_LEVEL3 0b0000111000111110
 #define MODEPATTERN_LEVEL4 0b0000111000001110
 enum modes {MODE_OFF=0, MODE_SILENT, MODEL_LEVEL1, MODE_LEVEL2, MODE_LEVEL3, MODE_LEVEL4, MODE_UNKNOWN};
-int modepattern[] = {MODEPATTERN_OFF, MODEPATTERN_SILENT, MODEPATTERN_LEVEL1, MODEPATTERN_LEVEL2, MODEPATTERN_LEVEL3, MODEPATTERN_LEVEL4 };
+unsigned int modepattern[] = {MODEPATTERN_OFF, MODEPATTERN_SILENT, MODEPATTERN_LEVEL1, MODEPATTERN_LEVEL2, MODEPATTERN_LEVEL3, MODEPATTERN_LEVEL4 };
 
 int getMode_from_leds(int leds) {
   int mode=MODE_UNKNOWN;
@@ -228,7 +228,8 @@ void setup() {
 
 void loop() {
   start:
-  struct hackAirData data = {0};
+  struct hackAirData data;
+  memset(&data,0,sizeof(hackAirData));
   sensor.readData(data);
   if (data.error != 0) {
     //Serial.println("sensor error");
