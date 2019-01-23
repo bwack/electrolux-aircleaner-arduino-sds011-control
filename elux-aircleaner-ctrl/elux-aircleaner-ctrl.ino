@@ -5,7 +5,7 @@ hackAIR sensor(SENSOR_SDS011, rxpin, txpin);
 //#define DEBUG_LEDSMATCH
 #define MAX_STATES 6
 enum states { OFF_STATE=0, SILENT_STATE, LEVEL1_STATE, LEVEL2_STATE, LEVEL3_STATE, LEVEL4_STATE };
-byte state = LEVEL3_STATE;
+byte state = LEVEL4_STATE;
 byte sensor_on_flag = 1;
 
 byte get_pattern(void) {
@@ -110,7 +110,7 @@ int ledsMatch(int leds, int pattern) {
 #define MODEPATTERN_LEVEL2 0b0000111001111110
 #define MODEPATTERN_LEVEL3 0b0000111000111110
 #define MODEPATTERN_LEVEL4 0b0000111000001110
-enum modes {MODE_OFF=0, MODE_SILENT, MODEL_LEVEL1, MODE_LEVEL2, MODE_LEVEL3, MODE_LEVEL4, MODE_UNKNOWN};
+enum modes {MODE_OFF=0, MODE_SILENT, MODE_LEVEL1, MODE_LEVEL2, MODE_LEVEL3, MODE_LEVEL4, MODE_UNKNOWN};
 unsigned int modepattern[] = {MODEPATTERN_OFF, MODEPATTERN_SILENT, MODEPATTERN_LEVEL1, MODEPATTERN_LEVEL2, MODEPATTERN_LEVEL3, MODEPATTERN_LEVEL4 };
 
 int getMode_from_leds(int leds) {
@@ -139,20 +139,22 @@ int nextstate(int current_state, float pm10, int power_button) {
       }
       break;
     case SILENT_STATE:
-      if (pm10>12.0) nextstate=LEVEL2_STATE;
+      if (pm10>3.0) nextstate=LEVEL1_STATE;
       break;
     case LEVEL1_STATE:
-      nextstate=SILENT_STATE;
+      if (pm10<1.6) nextstate=SILENT_STATE;
+      else if (pm10>7.0) nextstate=LEVEL2_STATE;
+      break;
     case LEVEL2_STATE:
-      if (pm10<3) nextstate=SILENT_STATE;
-      else if (pm10>24.0) nextstate=LEVEL3_STATE;
+      if (pm10<2) nextstate=LEVEL1_STATE;
+      else if (pm10>12.0) nextstate=LEVEL3_STATE;
       break;
     case LEVEL3_STATE:
-      if (pm10<12.0) nextstate=LEVEL2_STATE;
+      if (pm10<7.0) nextstate=LEVEL2_STATE;
       if (pm10>48.0) nextstate=LEVEL4_STATE;
       break;
     case LEVEL4_STATE:
-      if (pm10<24.0) nextstate=LEVEL3_STATE;
+      if (pm10<12.0) nextstate=LEVEL3_STATE;
     default:
       break;
   }
@@ -205,6 +207,7 @@ void setmode(int state) {
   if(mode==MODE_UNKNOWN || mode==MODE_OFF) return;
   //if (state==OFF_STATE && mode != MODE_OFF) push_button
   if (state==SILENT_STATE && mode != MODE_SILENT) push_button(2, MODE_SILENT);
+  if (state==LEVEL1_STATE && mode != MODE_LEVEL1) push_button(2, MODE_LEVEL1);
   if (state==LEVEL2_STATE && mode != MODE_LEVEL2) push_button(2, MODE_LEVEL2);
   if (state==LEVEL3_STATE && mode != MODE_LEVEL3) push_button(2, MODE_LEVEL3);
   if (state==LEVEL4_STATE && mode != MODE_LEVEL4) push_button(2, MODE_LEVEL4);
