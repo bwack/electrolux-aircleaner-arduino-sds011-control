@@ -3,9 +3,9 @@ const int rxpin=12, txpin=13;
 hackAIR sensor(SENSOR_SDS011, rxpin, txpin);
 //#define DEBUG
 //#define DEBUG_LEDSMATCH
-#define MAX_STATES 6
-enum states { OFF_STATE=0, SILENT_STATE, LEVEL1_STATE, LEVEL2_STATE, LEVEL3_STATE, LEVEL4_STATE };
-byte state = LEVEL4_STATE;
+#define MAX_STATES 7
+enum states { OFF_STATE=0, SWITCHON_STATE, SILENT_STATE, LEVEL1_STATE, LEVEL2_STATE, LEVEL3_STATE, LEVEL4_STATE };
+byte state = OFF_STATE;
 byte sensor_on_flag = 1;
 
 byte get_pattern(void) {
@@ -126,20 +126,19 @@ int getMode_from_leds(int leds) {
   return mode;
 }
 
-int nextstate(int current_state, float pm10, int power_button) {
+int nextstate(int current_state, float pm10, int select_button) {
+  int leds = get_leds();
+  int mode = getMode_from_leds(leds);
   int nextstate=current_state;
   switch(state) {
     case OFF_STATE:
-      static int button_count = 2;
-      if (power_button==0) {
-        if (button_count-- == 0) {
-          nextstate=LEVEL1_STATE;
-          button_count = 2;
-        }
-      }
+      if (select_button==0 && mode==MODE_OFF) nextstate = SWITCHON_STATE;
+      break;
+    case SWITCHON_STATE:
+      nextstate=SILENT_STATE;
       break;
     case SILENT_STATE:
-      if (pm10>3.0) nextstate=LEVEL1_STATE;
+      if (pm10>4.0) nextstate=LEVEL1_STATE;
       break;
     case LEVEL1_STATE:
       if (pm10<1.6) nextstate=SILENT_STATE;
@@ -155,17 +154,33 @@ int nextstate(int current_state, float pm10, int power_button) {
       break;
     case LEVEL4_STATE:
       if (pm10<12.0) nextstate=LEVEL3_STATE;
-    default:
       break;
+    default:
+      break;  
   }
+  if (current_state!=OFF_STATE && current_state != SWITCHON_STATE && mode==MODE_OFF)
+    nextstate = OFF_STATE;
+
 #ifdef DEBUG
   char line[120];
   char da_float[9];
   dtostrf(pm10, 4, 2, da_float);
-  sprintf(line, "nextstate: cs:%d ns:%d pm10:%s but:%d", current_state, nextstate, da_float, power_button);
+  sprintf(line, "nextstate: cs:%d ns:%d pm10:%s but:%d", current_state, nextstate, da_float, select_button);
   Serial.println(line);
 #endif
   return nextstate;
+}
+
+void push_on(void) {
+ #ifdef DEBUG
+  Serial.println("push_on()");
+#endif
+  pinMode(3, OUTPUT);
+  digitalWrite(3, LOW);
+  delay(100);
+  digitalWrite(3, HIGH);
+  pinMode(3, INPUT);
+  delay(100);
 }
 
 void push_button(int button, int targetmode) {
@@ -204,9 +219,12 @@ void setmode(int state) {
   Serial.print(" mode:");
   Serial.println(mode);
 #endif
-  if(mode==MODE_UNKNOWN || mode==MODE_OFF) return;
-  //if (state==OFF_STATE && mode != MODE_OFF) push_button
-  if (state==SILENT_STATE && mode != MODE_SILENT) push_button(2, MODE_SILENT);
+  if(mode==MODE_UNKNOWN) return;
+  if (state==SWITCHON_STATE && mode==MODE_OFF) {
+    push_on();
+  }
+  if (state==SILENT_STATE && mode == MODE_OFF) { push_button(2, MODE_SILENT); }
+  else if (state==SILENT_STATE && mode != MODE_SILENT) push_button(2, MODE_SILENT);
   if (state==LEVEL1_STATE && mode != MODE_LEVEL1) push_button(2, MODE_LEVEL1);
   if (state==LEVEL2_STATE && mode != MODE_LEVEL2) push_button(2, MODE_LEVEL2);
   if (state==LEVEL3_STATE && mode != MODE_LEVEL3) push_button(2, MODE_LEVEL3);
